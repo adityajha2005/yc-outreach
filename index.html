@@ -80,6 +80,7 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
   <label class="chk"><input type="checkbox" id="hideSent"> hide sent</label>
   <label class="chk"><input type="checkbox" id="hiring"> hiring</label>
   <button id="all" type="button">Expand all</button>
+  <button id="exportCsv" type="button">Export CSV</button>
 </div>
 <p class="sub" id="shown" style="margin:0 0 10px"></p>
 <div id="list"></div>
@@ -336,6 +337,26 @@ $("all").onclick = e => {
   const open = e.target.textContent === "Expand all";
   document.querySelectorAll("details").forEach(d => { if (d.style.display !== "none") d.open = open });
   e.target.textContent = open ? "Collapse all" : "Expand all";
+};
+$("exportCsv").onclick = () => {
+  const visibleIndices = Array.from(document.querySelectorAll("details"))
+    .filter(d => d.style.display !== "none")
+    .map(d => parseInt(d.dataset.i, 10));
+  if (!visibleIndices.length) return alert("No data to export.");
+  const headers = ["Company", "Batch", "Founder Name", "Title", "Email", "Email Status", "LinkedIn", "Twitter", "Jobs on YC", "Website"];
+  const rows = visibleIndices.flatMap(i => {
+    const c = DATA[i], fs = contacts(c);
+    if (!fs.length) return [[c.name, c.batch, "", "", "", "", "", "", c.job_count || 0, c.website || ""]];
+    return fs.map(f => {
+       const e = best(f);
+       return [c.name, c.batch, f.name, f.title || "", e.email || "", e.label || "", f.linkedin || "", f.twitter || "", c.job_count || 0, c.website || ""];
+    });
+  });
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
+  link.download = `yc_outreach_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
 document.querySelectorAll("[data-k]").forEach(el => {
   if (!(el.dataset.k in tpl)) return;
