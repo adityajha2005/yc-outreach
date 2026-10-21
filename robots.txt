@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yc-outreach-two.vercel.app/sitemap.xml

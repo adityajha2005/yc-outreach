@@ -9,3 +9,4 @@ __pycache__/
 yc_founders*.json
 yc_founders*.csv
 *_apify_raw.json
+.gstack/
