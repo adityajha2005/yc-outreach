@@ -99,6 +99,10 @@ domain doesn't resolve.
 - **Founders and open roles:** the `data-page` JSON embedded in each `ycombinator.com/companies/<slug>` page
   (`props.company` and `props.jobPostings`). Incomplete postings are skipped. Browsers can't fetch these
   cross-origin, which is why this part runs on a server.
+- **On-site emails:** the homepage and `/contact` page, plain text and Cloudflare's "email protection"
+  obfuscation (`data-cfemail="<hex>"`, shown on the page as `[email protected]`) decoded the same way browsers
+  render it. About 1 in 16 company sites use this, so without decoding it those real, published addresses would
+  silently fall back to a lower-reliability guess.
 - **Verified emails (optional):** the Apify actor
   [`snipercoder/email-finder-by-name-and-domain`](https://apify.com/snipercoder/email-finder-by-name-and-domain),
   called **from the browser** with the visitor's own token, so the token never reaches the server. Results are

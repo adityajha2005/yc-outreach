@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36"
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+CF_EMAIL_RE = re.compile(r'data-cfemail="([0-9a-fA-F]+)"')  # Cloudflare's "email protection" obfuscation
 BAD_EMAIL = re.compile(r"\.(png|jpe?g|gif|svg|webp|css|js)$|sentry|wixpress|example\.|@2x|u00|domain\.com|email\.com", re.I)
 SLUG_RE = re.compile(r"^[a-z0-9-]{1,100}$")
 BATCH_RE = re.compile(r"^(Winter|Spring|Summer|Fall) \d{4}$|^[WSFX]\d{2}$|^IK12$|^Unspecified$")
@@ -84,14 +85,30 @@ def ascii_name(s):
     return re.sub(r"[^a-z ]", "", unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()).split()
 
 
+def cf_decode(hexstr):
+    # Cloudflare's "email protection" shows "[email protected]" on the page and stashes the real
+    # address XOR-masked in a data-cfemail="<hex>" attribute: byte 0 is the key, every later byte
+    # is a masked character. Very common on small-business sites (Webflow/WordPress + Cloudflare);
+    # EMAIL_RE alone never sees these addresses, so without this they silently fall back to a guess.
+    try:
+        key, rest = int(hexstr[:2], 16), hexstr[2:]
+        if len(rest) < 2 or len(rest) % 2:
+            return None
+        return bytes(int(rest[i : i + 2], 16) ^ key for i in range(0, len(rest), 2)).decode("ascii")
+    except ValueError:
+        return None
+
+
 def site_emails(website, domain):
     found = set()
     for path in ("", "/contact"):  # ponytail: 2 pages, not the CLI's 6, to fit in a function timeout
-        body = get(website.rstrip("/") + path, timeout=3)
-        for e in EMAIL_RE.findall(urllib.parse.unquote(html.unescape(body or ""))):
+        raw = get(website.rstrip("/") + path, timeout=3) or ""
+        candidates = EMAIL_RE.findall(urllib.parse.unquote(html.unescape(raw)))
+        candidates += filter(None, (cf_decode(h) for h in CF_EMAIL_RE.findall(raw)))
+        for e in candidates:
             e = e.lower().strip(".")
-            host = e.split("@")[1]
-            if not BAD_EMAIL.search(e) and (host == domain or host.endswith("." + domain)):
+            host = e.split("@")[-1]
+            if EMAIL_RE.fullmatch(e) and not BAD_EMAIL.search(e) and (host == domain or host.endswith("." + domain)):
                 found.add(e)
     return sorted(found)
 
