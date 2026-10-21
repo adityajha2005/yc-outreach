@@ -75,7 +75,7 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
 </section>
 
 <div class="bar">
-  <input id="q" placeholder="Search company or founder" aria-label="Search">
+  <input id="q" placeholder="Search company, founder, role or description" aria-label="Search">
   <select id="st" aria-label="Email type"><option value="">All emails</option><option value="valid">Verified</option><option value="unknown">Unverified</option><option value="site">Found on site</option><option value="guess">Guess</option><option value="none">No email</option></select>
   <select id="ind" aria-label="Industry"><option value="">All industries</option></select>
   <label class="chk"><input type="checkbox" id="hideSent"> hide sent</label>
@@ -168,7 +168,10 @@ function jobsRow(c) {
 function render() {
   $("list").innerHTML = DATA.map((c, i) => {
     const fs = contacts(c), f = fs[0], b = f ? best(f) : { kind: c.founders ? "none" : "", label: c.error ? "error" : c.founders ? "no email" : "loading…" };
-    const key = (c.name + " " + fs.map(o => o.name).join(" ")).toLowerCase();
+    // Searchable text: company/founder names plus what's already fetched but otherwise hidden behind a
+    // click — the one-liner and open-role titles — so "founding engineer" or "fintech" filters the batch
+    // without expanding every company by hand.
+    const key = (c.name + " " + fs.map(o => o.name).join(" ") + " " + (c.one_liner || "") + " " + (c.jobs || []).map(j => j.title).join(" ")).toLowerCase();
     return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-ind="${esc(industryTop(c.industry))}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.slug) ? "sent" : ""}">
       <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}</span>
       <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}</span></summary>
