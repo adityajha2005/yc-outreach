@@ -16,7 +16,8 @@ Python 3.9+, standard library only. Nothing to install.
 2. **Founders load 20 companies at a time** (about 5–10 s per 20); click **Load more** for the next 20. For each
    company the server reads its ycombinator.com page for the founders' names, titles, LinkedIn and X, and for how
    many roles that company has open on YC (title and link for each). Loaded companies are kept in your browser, so
-   reopening a batch is instant. Check **hiring** to hide companies with no open roles.
+   reopening a batch is instant. Check **hiring** to hide companies with no open roles, or pick an **industry**
+   (B2B, Fintech, Healthcare, ...) from the dropdown to narrow the batch to the sector you actually want to reach.
 3. **Emails are filled in** for each founder, best source first:
 
    | Label | Source | Reliability |

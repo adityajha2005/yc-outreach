@@ -77,6 +77,7 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
 <div class="bar">
   <input id="q" placeholder="Search company or founder" aria-label="Search">
   <select id="st" aria-label="Email type"><option value="">All emails</option><option value="valid">Verified</option><option value="unknown">Unverified</option><option value="site">Found on site</option><option value="guess">Guess</option><option value="none">No email</option></select>
+  <select id="ind" aria-label="Industry"><option value="">All industries</option></select>
   <label class="chk"><input type="checkbox" id="hideSent"> hide sent</label>
   <label class="chk"><input type="checkbox" id="hiring"> hiring</label>
   <button id="all" type="button">Expand all</button>
@@ -117,6 +118,8 @@ let ALL = [], DATA = [], batch = "";
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const url = s => /^https?:\/\//i.test(s || "") ? esc(s) : "";
+// YC's industry field is "Top -> Sub" (or just "Top"); the filter only needs the top level.
+const industryTop = s => String(s || "").split("->")[0].trim();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const say = (id, msg, err) => { $(id).textContent = msg; $(id).classList.toggle("err", !!err) };
 
@@ -166,11 +169,11 @@ function render() {
   $("list").innerHTML = DATA.map((c, i) => {
     const fs = contacts(c), f = fs[0], b = f ? best(f) : { kind: c.founders ? "none" : "", label: c.error ? "error" : c.founders ? "no email" : "loading…" };
     const key = (c.name + " " + fs.map(o => o.name).join(" ")).toLowerCase();
-    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.slug) ? "sent" : ""}">
+    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-ind="${esc(industryTop(c.industry))}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.slug) ? "sent" : ""}">
       <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}</span>
       <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}</span></summary>
       <div class="body">
-        <p class="one">${esc(c.one_liner)}${url(c.website) ? ` · <a class="lnk" href="${url(c.website)}" target="_blank" rel="noopener">website</a>` : ""} · <a class="lnk" href="https://www.ycombinator.com/companies/${esc(c.slug)}" target="_blank" rel="noopener">YC</a>${url(f?.linkedin) ? ` · <a class="lnk" href="${url(f.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${url(f?.twitter) ? ` · <a class="lnk" href="${url(f.twitter)}" target="_blank" rel="noopener">X</a>` : ""}</p>
+        <p class="one">${esc(c.one_liner)}${c.industry ? ` · <span class="lnk">${esc(c.industry)}</span>` : ""}${url(c.website) ? ` · <a class="lnk" href="${url(c.website)}" target="_blank" rel="noopener">website</a>` : ""} · <a class="lnk" href="https://www.ycombinator.com/companies/${esc(c.slug)}" target="_blank" rel="noopener">YC</a>${url(f?.linkedin) ? ` · <a class="lnk" href="${url(f.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${url(f?.twitter) ? ` · <a class="lnk" href="${url(f.twitter)}" target="_blank" rel="noopener">X</a>` : ""}</p>
         ${c.error ? `<p class="status err">${esc(c.error)}</p>` : ""}
         ${jobsRow(c)}
         ${fs.map(o => { const e = best(o); return `<div class="r"><b>${o === f ? "To" : "Also"}</b>${esc(o.name)}${o.title ? ` (${esc(o.title)})` : ""} · ${esc(e.email || "no email")} <span class="badge ${e.kind}">${e.label}</span></div>` }).join("")}
@@ -197,14 +200,24 @@ function draft(d) {
 function update() { document.querySelectorAll("details[open]").forEach(draft) }
 
 function filter() {
-  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked, hiring = $("hiring").checked;
+  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked, hiring = $("hiring").checked, ind = $("ind").value;
   let n = 0;
   document.querySelectorAll("details").forEach(d => {
     const ok = (!q || d.dataset.k.includes(q)) && (!st || d.dataset.s === st) && !(hide && d.classList.contains("sent"))
-      && (!hiring || +d.dataset.jobs > 0);
+      && (!hiring || +d.dataset.jobs > 0) && (!ind || d.dataset.ind === ind);
     d.style.display = ok ? "" : "none"; n += ok;
   });
   $("shown").textContent = DATA.length ? `${n} of ${DATA.length} shown · ${sent.size} sent` : "";
+}
+
+// Populate the industry dropdown from the companies actually in this batch, so the
+// list only ever offers choices that can return a result. Keeps the current
+// selection if it still exists in the new batch, otherwise resets to "All industries".
+function populateIndustries() {
+  const prev = $("ind").value;
+  const industries = [...new Set(ALL.map(c => industryTop(c.industry)).filter(Boolean))].sort();
+  $("ind").innerHTML = `<option value="">All industries</option>` + industries.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
+  if (industries.includes(prev)) $("ind").value = prev;
 }
 
 // ALL = every company in the batch; DATA = the ones whose founders are loaded (what the list shows)
@@ -237,6 +250,7 @@ async function loadBatch() {
     return say("loadStatus", `Couldn't load this batch: ${e.message}`, true);
   }
   DATA = ALL.filter(c => c.founders || c.error);
+  populateIndustries();
   render();
   // Fetch on open only for an empty batch, or to fill job counts missing from an older cache
   const stale = ALL.some(c => c.founders && c.job_count == null && !c.error);
@@ -332,7 +346,7 @@ $("list").addEventListener("click", e => {
   const txt = b.dataset.a === "body" ? d.querySelector("pre").textContent : b.dataset.a === "subject" ? d.querySelector(".subj").textContent : to ? best(to).email : "";
   navigator.clipboard.writeText(txt).then(() => { const o = b.textContent; b.textContent = "Copied"; setTimeout(() => b.textContent = o, 1200) });
 });
-["q", "st", "hideSent", "hiring"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
+["q", "st", "ind", "hideSent", "hiring"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
 $("all").onclick = e => {
   const open = e.target.textContent === "Expand all";
   document.querySelectorAll("details").forEach(d => { if (d.style.display !== "none") d.open = open });
@@ -343,13 +357,13 @@ $("exportCsv").onclick = () => {
     .filter(d => d.style.display !== "none")
     .map(d => parseInt(d.dataset.i, 10));
   if (!visibleIndices.length) return alert("No data to export.");
-  const headers = ["Company", "Batch", "Founder Name", "Title", "Email", "Email Status", "LinkedIn", "Twitter", "Jobs on YC", "Website"];
+  const headers = ["Company", "Batch", "Industry", "Founder Name", "Title", "Email", "Email Status", "LinkedIn", "Twitter", "Jobs on YC", "Website"];
   const rows = visibleIndices.flatMap(i => {
     const c = DATA[i], fs = contacts(c);
-    if (!fs.length) return [[c.name, c.batch, "", "", "", "", "", "", c.job_count || 0, c.website || ""]];
+    if (!fs.length) return [[c.name, c.batch, c.industry || "", "", "", "", "", "", "", c.job_count || 0, c.website || ""]];
     return fs.map(f => {
        const e = best(f);
-       return [c.name, c.batch, f.name, f.title || "", e.email || "", e.label || "", f.linkedin || "", f.twitter || "", c.job_count || 0, c.website || ""];
+       return [c.name, c.batch, c.industry || "", f.name, f.title || "", e.email || "", e.label || "", f.linkedin || "", f.twitter || "", c.job_count || 0, c.website || ""];
     });
   });
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
