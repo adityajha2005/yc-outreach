@@ -1,5 +1,7 @@
 # YC Outreach
 
+**Live:** [yc-outreach-two.vercel.app](https://yc-outreach-two.vercel.app/) — no install, nothing to sign up for.
+
 Pick any Y Combinator batch, get every company's founders and their likely email addresses, and write a personalised
 cold email to each one from a single template. Free by default (no API keys, no sign-up); optional verified emails
 with your own Apify token.
