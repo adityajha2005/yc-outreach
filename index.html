@@ -166,7 +166,7 @@ function render() {
   $("list").innerHTML = DATA.map((c, i) => {
     const fs = contacts(c), f = fs[0], b = f ? best(f) : { kind: c.founders ? "none" : "", label: c.error ? "error" : c.founders ? "no email" : "loading…" };
     const key = (c.name + " " + fs.map(o => o.name).join(" ")).toLowerCase();
-    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.name) ? "sent" : ""}">
+    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.slug) ? "sent" : ""}">
       <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}</span>
       <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}</span></summary>
       <div class="body">
@@ -179,7 +179,7 @@ function render() {
         <div class="acts">
           <button class="primary" data-a="body" type="button">Copy body</button><button data-a="to" type="button">Copy email</button><button data-a="subject" type="button">Copy subject</button>
           <a class="btn mail" href="#">Open in mail app</a>
-          <label class="chk"><input type="checkbox" data-a="sent" ${sent.has(c.name) ? "checked" : ""}> sent</label>
+          <label class="chk"><input type="checkbox" data-a="sent" ${sent.has(c.slug) ? "checked" : ""}> sent</label>
         </div>
       </div></details>`;
   }).join("");
@@ -325,7 +325,7 @@ $("list").addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if (!b) return;
   const d = b.closest("details"), c = DATA[d.dataset.i];
   if (b.dataset.a === "sent") {
-    b.checked ? sent.add(c.name) : sent.delete(c.name);
+    b.checked ? sent.add(c.slug) : sent.delete(c.slug);
     d.classList.toggle("sent", b.checked); store.set(KEY + "-sent", [...sent]); filter(); return;
   }
   const to = contacts(c)[0];
