@@ -12,6 +12,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="YC Founder Outreach">
 <meta name="twitter:description" content="Pick any YC batch, get every company's founders and likely email addresses, and draft a personalised cold email to each one from a single template. Free, no sign-up, no API key.">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{--bg:#f7f7f5;--card:#fff;--fg:#1c1c1a;--muted:#6b6b66;--line:#e4e3de;--accent:#e2561b;--ok:#1f8a4c;--warn:#a86b00;--err:#c0392b}
 @media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--fg:#ecebe6;--muted:#9a998f;--line:#302f2b;--accent:#f07a45;--ok:#4cc27d;--warn:#e0a53a;--err:#e8705f}}
@@ -40,10 +41,22 @@ summary::before{content:"▸";color:var(--muted)}details[open] summary::before{c
 .one{color:var(--muted);font-size:14px;margin:10px 0 0}
 pre{white-space:pre-wrap;font:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0}
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-button,a.btn{font:inherit;font-size:13px;cursor:pointer;border-radius:8px;padding:6px 12px;border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none}
+button,a.btn,label.btn{font:inherit;font-size:13px;cursor:pointer;border-radius:8px;padding:6px 12px;border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none;display:inline-flex;align-items:center}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button:disabled{opacity:.5;cursor:default}
 a.lnk{color:var(--muted);font-size:13px}
 footer{color:var(--muted);font-size:13px;margin-top:32px}
+.conf{font-size:11px;color:var(--muted);font-weight:400}
+.alt{font-size:12px;color:var(--muted);margin:4px 0 0;cursor:pointer}
+.altlist{font-size:12px;color:var(--muted);margin:4px 0 0;display:none}.altlist.show{display:block}
+.fit{font-size:12px;color:var(--accent);font-weight:600}
+.stageSel{font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.stage-followed_up{opacity:.8}.stage-replied{outline:2px solid var(--ok)}.stage-interview{outline:2px solid var(--accent)}
+.due{color:var(--err);font-weight:600}
+.jobsel{font-size:13px;margin:8px 0 0}
+.queue{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+#gmailPanel.connected{border-color:var(--ok)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:99px;background:var(--muted)}
+.dot.on{background:var(--ok)}
 </style></head><body><main>
 <h1>YC Founder Outreach</h1>
 <p class="sub">Pick a YC batch, find founder emails, and write personalised cold emails from one template. Free without any keys; everything you type stays in your browser.</p>
@@ -56,26 +69,58 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
     <label class="f">GitHub<input data-k="github" placeholder="https://github.com/..."></label>
     <label class="f">Resume link<input data-k="resume" placeholder="https://..."></label>
   </div>
-  <h2>2. Email template</h2>
+  <label class="f" style="margin-top:10px">Your skills / stack <span style="color:var(--muted)">(used to rank companies by fit — "Best fit first")</span>
+    <textarea data-k="skills" style="min-height:60px" placeholder="e.g. TypeScript, React, Node, Postgres, Go, infra, founding engineer"></textarea></label>
+  <h2 style="margin-top:16px">2. Email template</h2>
   <label class="f">Subject<input data-k="subject"></label>
   <label class="f" style="margin-top:10px">Body<textarea data-k="body"></textarea></label>
-  <p class="ph" id="vars">Click to insert: <code>{first_name}</code><code>{company}</code><code>{one_liner}</code><code>{batch}</code><code>{my_name}</code><code>{portfolio}</code><code>{github}</code><code>{resume}</code>
+  <p class="ph" id="vars">Click to insert: <code>{first_name}</code><code>{company}</code><code>{one_liner}</code><code>{batch}</code><code>{job_title}</code><code>{job_url}</code><code>{my_name}</code><code>{portfolio}</code><code>{github}</code><code>{resume}</code>
   &nbsp;<button id="reset" type="button">Reset template</button></p>
-  <p class="ph">Lines like <code>resume: {resume}</code> are dropped when you leave that field empty. Email labels: <span class="badge valid">verified</span> / <span class="badge unknown">unverified</span> come from Apify (step 4), <span class="badge site">on site</span> is listed on the company's website, <span class="badge guess">guess</span> is the most common pattern (right about 80% of the time) and may bounce.</p>
+  <p class="ph">Lines like <code>resume: {resume}</code> are dropped when you leave that field empty. Email labels: <span class="badge valid">verified</span> / <span class="badge unknown">unverified</span> come from Apify (step 4), <span class="badge site">on site</span> is listed on the company's website, <span class="badge guess">guess</span> shows a confidence percentage and may bounce. When a company has more than one open role, pick which one the draft targets from its role dropdown.</p>
+  <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted);font-size:13px">Follow-up email (sent automatically from the queue once a contact's follow-up is due)</summary>
+    <div style="padding-top:10px">
+      <label class="f">Follow-up subject<input data-k="followup_subject"></label>
+      <label class="f" style="margin-top:10px">Follow-up body<textarea data-k="followup_body" style="min-height:160px"></textarea></label>
+      <p class="ph">Same placeholders as above. Follow-up is scheduled
+        <input id="followupDays" type="number" min="1" max="30" value="5" style="width:50px;display:inline-block;padding:2px 6px"> business days after a contact is marked <b>Sent</b>.</p>
+    </div>
+  </details>
 </section>
 
 <section class="panel">
-  <h2>3. Pick a YC batch</h2>
+  <h2>3. Pick YC batch(es)</h2>
   <div class="row2">
-    <select id="batch" aria-label="YC batch"><option value="">Loading batches…</option></select>
+    <select id="batch" multiple size="6" aria-label="YC batches (select one or more)"><option value="">Loading batches…</option></select>
     <button id="load" class="primary" type="button" disabled>Load companies</button>
   </div>
+  <p class="ph" style="margin:6px 0 0">Ctrl/Cmd-click (or shift-click) to select several batches — e.g. every batch from the last year — and load them in one pass.</p>
   <p class="status" id="loadStatus"></p>
 </section>
 
+<section class="panel" id="gmailPanel">
+  <h2>4. Connect Gmail <span style="font-weight:400;color:var(--muted)">(optional — send without leaving this page)</span></h2>
+  <p class="ph" style="margin:0 0 10px">Connects straight from your browser to the Gmail API with the narrowest possible scope (<code>gmail.send</code> only — this app can send as you, never read your mail).
+    The token lives only in this tab's memory/session storage; it is never sent to this site's server. Sends go out through a queue with a random 20-60s delay between messages and a daily cap, so you don't blast everyone at once.
+    Requires a free Google Cloud OAuth client ID (owner/operator sets this up once in the Google Cloud Console — zero cost, not needed to use Copy/mailto instead).</p>
+  <div class="row2">
+    <button id="gmailConnect" type="button">Connect Gmail</button>
+    <button id="gmailDisconnect" type="button" hidden>Disconnect</button>
+    <span class="chk"><span class="dot" id="gmailDot"></span><span id="gmailState">Not connected</span></span>
+    <label class="f" style="flex:1;min-width:160px">Daily send cap<input id="dailyCap" type="number" min="1" max="200" value="30"></label>
+  </div>
+  <p class="status" id="gmailStatus"></p>
+  <div class="queue" id="queuePanel" hidden>
+    <span>Queue: <b id="qPending">0</b> pending</span>
+    <span>Sent today: <b id="qSentToday">0</b>/<span id="qCapLabel">30</span></span>
+    <span id="qNext"></span>
+    <button id="qToggle" type="button">Pause</button>
+    <button id="qClear" type="button">Clear queue</button>
+  </div>
+</section>
+
 <section class="panel">
-  <h2>4. Find verified emails <span style="font-weight:400;color:var(--muted)">(optional)</span></h2>
-  <p class="ph" style="margin:0 0 10px">Without this you get emails listed on company sites plus pattern guesses like <code>first@domain</code> (right about 80% of the time). For verified emails, paste your own
+  <h2>5. Find verified emails <span style="font-weight:400;color:var(--muted)">(optional)</span></h2>
+  <p class="ph" style="margin:0 0 10px">Without this you get emails listed on company sites plus pattern guesses like <code>first@domain</code>, each with a confidence percentage based on this tool's own benchmark and, once any founder's real address is known, re-ranked to that company's actual pattern. For verified emails, paste your own
     <a href="https://console.apify.com/settings/integrations" target="_blank" rel="noopener">Apify API token</a>. Lookups run from your browser straight to Apify on your account; the token is never sent to this site's server and isn't saved.</p>
   <div class="row2">
     <label class="f" style="flex:2">Apify token<input id="token" type="password" placeholder="apify_api_..." autocomplete="off"></label>
@@ -89,19 +134,33 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
   <input id="q" placeholder="Search company, founder, role or description" aria-label="Search">
   <select id="st" aria-label="Email type"><option value="">All emails</option><option value="valid">Verified</option><option value="unknown">Unverified</option><option value="site">Found on site</option><option value="guess">Guess</option><option value="none">No email</option></select>
   <select id="ind" aria-label="Industry"><option value="">All industries</option></select>
-  <label class="chk"><input type="checkbox" id="hideSent"> hide sent</label>
+  <select id="stageFilter" aria-label="Pipeline stage"><option value="">All stages</option><option value="not_sent">Not sent</option><option value="sent">Sent</option><option value="due">Follow-up due</option><option value="followed_up">Followed up</option><option value="replied">Replied</option><option value="interview">Interview</option><option value="rejected">Rejected</option><option value="closed">Closed</option></select>
+  <label class="chk"><input type="checkbox" id="hideSent"> hide contacted</label>
   <label class="chk"><input type="checkbox" id="hiring"> hiring</label>
+  <button id="fitSort" type="button">Best fit first</button>
+  <button id="notifyBtn" type="button" title="Notify me about new batches and new roles">Enable alerts</button>
   <button id="all" type="button">Expand all</button>
   <button id="exportCsv" type="button">Export CSV</button>
+  <button id="exportJson" type="button" title="Back up every setting and loaded company to a file">Export session</button>
+  <label class="btn" style="margin:0" title="Restore from an exported session file">Import session<input id="importJson" type="file" accept="application/json" hidden></label>
 </div>
 <p class="sub" id="shown" style="margin:0 0 10px"></p>
+<p class="status" id="watchStatus" style="margin:0 0 10px"></p>
 <div id="list"></div>
 <p style="text-align:center"><button id="more" class="primary" type="button" hidden>Load more</button></p>
 <footer><a class="lnk" href="https://github.com/adityajha2005/yc-outreach" target="_blank" rel="noopener">Open source</a> — star it on GitHub. Company and founder data comes from YC's public directory. Please write to people one at a time and respect "no".</footer>
 </main>
 <script>
+// Google OAuth client ID for the optional "Connect Gmail" direct-send feature (gmail.send scope only).
+// Owner/operator step (zero cost, console-only): create an OAuth 2.0 Web application client at
+// https://console.cloud.google.com/apis/credentials, add this page's origin to "Authorized JavaScript
+// origins", enable the Gmail API, and paste the client ID below. Until that's done, Connect Gmail shows
+// a clear error and every other feature (including Copy/mailto sending) works exactly as before.
+const GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+
 const DEFAULTS = {
-  my_name: "", portfolio: "", github: "", resume: "",
+  my_name: "", portfolio: "", github: "", resume: "", skills: "",
   subject: "interested in {company}",
   body: `Hey {first_name},
 
@@ -116,16 +175,61 @@ would love to explore if there's a role at {company}.
 - {my_name}
 portfolio: {portfolio}
 github: {github}
-resume: {resume}`
+resume: {resume}`,
+  followup_subject: "following up: {company}",
+  followup_body: `Hey {first_name},
+
+following up on my note about {company} (role: {job_title}) in case it got buried — still very interested.
+
+- {my_name}
+portfolio: {portfolio}`
 };
 const KEY = "yc-outreach-v2";
 const ACTOR = "snipercoder~email-finder-by-name-and-domain";
 const APIFY = "https://api.apify.com/v2";
-const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } },
+const GMAIL = "https://gmail.googleapis.com/gmail/v1";
+// Pipeline stages, in order. "due" is a derived filter value, not a stored stage.
+const STAGES = ["not_sent", "sent", "followed_up", "replied", "interview", "rejected", "closed"];
+const STAGE_LABEL = { not_sent: "Not sent", sent: "Sent", followed_up: "Followed up", replied: "Replied",
+                      interview: "Interview", rejected: "Rejected", closed: "Closed" };
+const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v === null || v === undefined ? d : v } catch { return d } },
                 set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} } };
 let tpl = Object.assign({}, DEFAULTS, store.get(KEY, {}));
-let sent = new Set(store.get(KEY + "-sent", []));
-let ALL = [], DATA = [], batch = "";
+// Pipeline state, keyed by YC slug: { stage, sentAt, followupDueAt, followedUpAt, repliedAt, interviewAt, closedAt, template }
+let stages = store.get(KEY + "-stages", {});
+(function migrateSentSet() { // one-time: the old boolean "sent" Set becomes stage "sent" with no known timestamp
+  const legacy = store.get(KEY + "-sent", null);
+  if (!legacy) return;
+  for (const slug of legacy) if (!stages[slug]) stages[slug] = { stage: "sent", sentAt: null };
+  store.set(KEY + "-stages", stages);
+  localStorage.removeItem(KEY + "-sent");
+})();
+function stageOf(slug) { return stages[slug]?.stage || "not_sent"; }
+function isDue(slug) {
+  const s = stages[slug];
+  return !!(s && s.stage === "sent" && s.followupDueAt && Date.now() >= s.followupDueAt);
+}
+function addBusinessDays(date, days) {
+  const d = new Date(date);
+  let left = days;
+  while (left > 0) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) left--; }
+  return d;
+}
+function setStage(slug, stage) {
+  const now = Date.now(), prev = stages[slug] || {};
+  const rec = { ...prev, stage };
+  if (stage === "sent" && !prev.sentAt) { rec.sentAt = now; rec.followupDueAt = addBusinessDays(now, +$("followupDays").value || 5).getTime(); }
+  if (stage === "followed_up") rec.followedUpAt = now;
+  if (stage === "replied") rec.repliedAt = now;
+  if (stage === "interview") rec.interviewAt = now;
+  if (stage === "rejected") rec.rejectedAt = now;
+  if (stage === "closed") rec.closedAt = now;
+  stages[slug] = rec;
+  store.set(KEY + "-stages", stages);
+}
+let ALL = [], DATA = [], batch = "", sortMode = "default";
+const jobSel = store.get(KEY + "-jobsel", {});   // slug -> index into c.jobs, for the role picker
+const jobCache = store.get(KEY + "-jobcache", {}); // job url -> full job detail (description etc.)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const url = s => /^https?:\/\//i.test(s || "") ? esc(s) : "";
@@ -141,12 +245,15 @@ async function api(params) {
   return j;
 }
 
-// Best email for a founder: verified > unverified (Apify) > on the company site > pattern guess
+// Best email for a founder: verified > unverified (Apify) > on the company site > pattern guess.
+// Every source now carries a numeric confidence (%) so the UI can show one badge format throughout.
 function best(f) {
-  if (f.apify_email) return { email: f.apify_email, kind: f.apify_status === "valid" ? "valid" : "unknown", label: f.apify_status === "valid" ? "verified" : "unverified" };
-  if (f.emails_found?.length) return { email: f.emails_found[0], kind: "site", label: "on site" };
-  if (f.email_guesses?.length) return { email: f.email_guesses[0], kind: "guess", label: "guess" };
-  return { email: "", kind: "none", label: "no email" };
+  if (f.apify_email) return f.apify_status === "valid"
+    ? { email: f.apify_email, kind: "valid", label: "verified", confidence: 99 }
+    : { email: f.apify_email, kind: "unknown", label: "unverified", confidence: 60 };
+  if (f.emails_found?.length) return { email: f.emails_found[0], kind: "site", label: "on site", confidence: 97 };
+  if (f.email_guesses?.length) { const g = f.email_guesses[0]; return { email: g.email, kind: "guess", label: "guess", confidence: g.confidence, pattern: g.pattern }; }
+  return { email: "", kind: "none", label: "no email", confidence: 0 };
 }
 const RANK = { valid: 0, unknown: 1, site: 2, guess: 3, none: 4 };
 // Primary contact: best email first, then CEO
@@ -154,12 +261,21 @@ function contacts(c) {
   return [...(c.founders || [])].sort((a, b) => (RANK[best(a).kind] - RANK[best(b).kind]) || (!/ceo/i.test(a.title) - !/ceo/i.test(b.title)));
 }
 
-function fill(text, c) {
+// Which open role a company's draft targets. Defaults to the first/only role; sticky per-slug once picked.
+function selectedJob(c) {
+  if (!c.jobs?.length) return null;
+  const i = jobSel[c.slug] || 0;
+  return c.jobs[Math.min(i, c.jobs.length - 1)];
+}
+
+function fill(text, c, stageRec) {
   const f = contacts(c)[0] || { name: "" };
+  const job = selectedJob(c);
   const vars = { first_name: f.name.split(" ")[0] || "there", company: c.name, one_liner: (c.one_liner || "what you're building").replace(/\.$/, "").toLowerCase(),
-                 batch: c.batch, my_name: tpl.my_name, portfolio: tpl.portfolio, github: tpl.github, resume: tpl.resume };
+                 batch: c.batch, job_title: job?.title || "", job_url: job?.url || "",
+                 my_name: tpl.my_name, portfolio: tpl.portfolio, github: tpl.github, resume: tpl.resume };
   const out = text.replace(/\{(\w+)\}/g, (m, k) => k in vars ? vars[k] : m);
-  return out.split("\n").filter(l => !/^\s*[\w ]+:\s*$/.test(l)).join("\n");
+  return out.split("\n").filter(l => !/^\s*[\w ]+:\s*$/.test(l)).join("\n").replace(/\s*\(\s*role:\s*\)/gi, "").trim();
 }
 
 function rolesLine(c) {
@@ -167,37 +283,80 @@ function rolesLine(c) {
   const word = c.job_count === 1 ? "open role" : "open roles";
   return `<br><span class="roles">${c.job_count} ${word}</span>`;
 }
+function jobPicker(c) {
+  if (!c.jobs?.length) return "";
+  if (c.jobs.length === 1) return "";
+  const i = jobSel[c.slug] || 0;
+  return `<div class="jobsel"><label>Draft targets role: <select data-a="jobpick" style="width:auto;display:inline-block">
+    ${c.jobs.map((j, idx) => `<option value="${idx}" ${idx === i ? "selected" : ""}>${esc(j.title)}</option>`).join("")}
+  </select></label></div>`;
+}
 function jobsRow(c) {
   if (c.job_count == null) return "";
   if (!c.job_count) return `<div class="r"><b>Jobs</b>No open roles on YC</div>`;
-  const links = (c.jobs || []).map(j => j.url
-    ? `<a class="lnk" href="${url(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>`
-    : esc(j.title)).join(" · ");
-  return `<div class="r"><b>Jobs</b>${c.job_count} open on YC${links ? ` · ${links}` : ""}</div>`;
+  const rows = (c.jobs || []).map(j => {
+    const cached = j.url && jobCache[j.url];
+    const openLink = j.url ? ` <a class="lnk" href="${url(j.url)}" target="_blank" rel="noopener">↗</a>` : "";
+    const title = j.url
+      ? `<button class="lnk" type="button" data-a="viewjob" data-u="${esc(j.url)}" style="border:none;background:none;padding:0;text-decoration:underline;cursor:pointer;font:inherit">${esc(j.title)}</button>`
+      : esc(j.title);
+    const descHtml = cached ? `<p class="one" style="margin:4px 0 10px">${esc(cached.description.slice(0, 500))}${cached.description.length > 500 ? "…" : ""}${cached.location ? ` · ${esc(cached.location)}` : ""}${cached.salary_range ? ` · ${esc(cached.salary_range)}` : ""}</p>` : "";
+    return `<div class="one">${title}${openLink}</div>${descHtml}`;
+  }).join("");
+  return `<div class="r"><b>Jobs</b>${c.job_count} open on YC</div>${rows}${jobPicker(c)}`;
+}
+
+// Fit score: overlap between the user's skills/stack and a company's open-role titles (always available)
+// plus any full job descriptions fetched via "view job" (item 2/13), as a % of skill keywords matched.
+function tokenize(s) { return new Set(String(s || "").toLowerCase().match(/[a-z0-9+.#]+/g) || []); }
+function fitScore(c) {
+  const skills = tokenize(tpl.skills);
+  if (!skills.size || !c.jobs?.length) return null;
+  const extra = c.jobs.map(j => jobCache[j.url]?.description || "").join(" ");
+  const text = tokenize((c.jobs || []).map(j => j.title).join(" ") + " " + extra);
+  if (!text.size) return 0;
+  let hit = 0; skills.forEach(s => { if (text.has(s)) hit++ });
+  return Math.round(100 * hit / skills.size);
+}
+
+function guessAlts(e, o) {
+  if (e.kind !== "guess" || !o.email_guesses || o.email_guesses.length < 2) return "";
+  const others = o.email_guesses.slice(1).map(g => `${esc(g.email)} (${g.confidence}%)`).join(", ");
+  return ` <span class="alt" data-a="togglealt">other guesses</span><div class="altlist">${others}</div>`;
 }
 
 function render() {
   $("list").innerHTML = DATA.map((c, i) => {
     const fs = contacts(c), f = fs[0], b = f ? best(f) : { kind: c.founders ? "none" : "", label: c.error ? "error" : c.founders ? "no email" : "loading…" };
+    const stage = stageOf(c.slug), due = isDue(c.slug);
+    const fit = fitScore(c);
     // Searchable text: company/founder names plus what's already fetched but otherwise hidden behind a
     // click — the one-liner and open-role titles — so "founding engineer" or "fintech" filters the batch
     // without expanding every company by hand.
     const key = (c.name + " " + fs.map(o => o.name).join(" ") + " " + (c.one_liner || "") + " " + (c.jobs || []).map(j => j.title).join(" ")).toLowerCase();
-    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-ind="${esc(industryTop(c.industry))}" data-jobs="${c.job_count == null ? "" : c.job_count}" class="${sent.has(c.slug) ? "sent" : ""}">
-      <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}</span>
-      <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}</span></summary>
+    return `<details data-i="${i}" data-k="${esc(key)}" data-s="${b.kind}" data-ind="${esc(industryTop(c.industry))}" data-jobs="${c.job_count == null ? "" : c.job_count}" data-stage="${stage}" data-due="${due ? "1" : ""}" class="${stage !== "not_sent" ? "sent" : ""} stage-${stage}">
+      <summary><span class="name">${esc(c.name)}</span><span class="badge ${b.kind || "none"}">${esc(b.label)}${b.confidence ? ` ${b.confidence}%` : ""}</span>
+      <span class="meta">${esc(f?.name || "")}<br>${esc(c.batch)}${rolesLine(c)}${fit != null ? `<br><span class="fit">${fit}% fit</span>` : ""}${due ? `<br><span class="due">follow-up due</span>` : ""}</span></summary>
       <div class="body">
         <p class="one">${esc(c.one_liner)}${c.industry ? ` · <span class="lnk">${esc(c.industry)}</span>` : ""}${url(c.website) ? ` · <a class="lnk" href="${url(c.website)}" target="_blank" rel="noopener">website</a>` : ""} · <a class="lnk" href="https://www.ycombinator.com/companies/${esc(c.slug)}" target="_blank" rel="noopener">YC</a>${url(f?.linkedin) ? ` · <a class="lnk" href="${url(f.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${url(f?.twitter) ? ` · <a class="lnk" href="${url(f.twitter)}" target="_blank" rel="noopener">X</a>` : ""}</p>
         ${c.error ? `<p class="status err">${esc(c.error)}</p>` : ""}
         ${jobsRow(c)}
-        ${fs.map(o => { const e = best(o); return `<div class="r"><b>${o === f ? "To" : "Also"}</b>${esc(o.name)}${o.title ? ` (${esc(o.title)})` : ""} · ${esc(e.email || "no email")} <span class="badge ${e.kind}">${e.label}</span></div>` }).join("")}
+        ${fs.map(o => { const e = best(o); return `<div class="r"><b>${o === f ? "To" : "Also"}</b>${esc(o.name)}${o.title ? ` (${esc(o.title)})` : ""} · ${esc(e.email || "no email")} <span class="badge ${e.kind}">${e.label}${e.confidence ? ` ${e.confidence}%` : ""}</span>${guessAlts(e, o)}</div>` }).join("")}
         <div class="r"><b>Subject</b><span class="subj"></span></div>
         <pre></pre>
         <div class="acts">
+          <button class="primary" data-a="send" type="button" hidden>➤ Send</button>
           <button class="primary" data-a="body" type="button">Copy body</button><button data-a="to" type="button">Copy email</button><button data-a="subject" type="button">Copy subject</button>
           <a class="btn mail" href="#">Open in mail app</a>
-          <label class="chk"><input type="checkbox" data-a="sent" ${sent.has(c.slug) ? "checked" : ""}> sent</label>
+          <select class="stageSel" data-a="stage">${STAGES.map(s => `<option value="${s}" ${s === stage ? "selected" : ""}>${STAGE_LABEL[s]}</option>`).join("")}</select>
         </div>
+        ${stage === "sent" || stage === "followed_up" ? `
+        <div class="r" style="margin-top:14px;border-top:1px dashed var(--line);padding-top:10px"><b>Follow-up</b><span class="fsubj"></span></div>
+        <pre class="fpre"></pre>
+        <div class="acts">
+          <button class="primary" data-a="fsend" type="button" hidden>➤ Send follow-up</button>
+          <button data-a="fbody" type="button">Copy follow-up</button>
+        </div>` : ""}
       </div></details>`;
   }).join("");
   update();
@@ -210,18 +369,32 @@ function draft(d) {
   d.querySelector(".subj").textContent = subject;
   d.querySelector("pre").textContent = body;
   d.querySelector(".mail").href = `mailto:${encodeURIComponent(to ? best(to).email : "")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const sendBtn = d.querySelector('[data-a="send"]'), copyBtn = d.querySelector('[data-a="body"]');
+  const connected = !!gmailToken;
+  sendBtn.hidden = !connected; copyBtn.hidden = connected;
+  const fsubj = d.querySelector(".fsubj"), fpre = d.querySelector(".fpre");
+  if (fsubj && fpre) {
+    const fSubject = fill(tpl.followup_subject, c), fBody = fill(tpl.followup_body, c);
+    fsubj.textContent = fSubject; fpre.textContent = fBody;
+    const fSend = d.querySelector('[data-a="fsend"]'), fCopy = d.querySelector('[data-a="fbody"]');
+    if (fSend) fSend.hidden = !connected;
+    if (fCopy) fCopy.hidden = connected;
+  }
 }
 function update() { document.querySelectorAll("details[open]").forEach(draft) }
 
 function filter() {
-  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked, hiring = $("hiring").checked, ind = $("ind").value;
+  const q = $("q").value.trim().toLowerCase(), st = $("st").value, hide = $("hideSent").checked, hiring = $("hiring").checked, ind = $("ind").value, stageF = $("stageFilter").value;
   let n = 0;
-  document.querySelectorAll("details").forEach(d => {
+  document.querySelectorAll("#list details").forEach(d => {
+    const stageOk = !stageF || (stageF === "due" ? d.dataset.due === "1" : d.dataset.stage === stageF);
     const ok = (!q || d.dataset.k.includes(q)) && (!st || d.dataset.s === st) && !(hide && d.classList.contains("sent"))
-      && (!hiring || +d.dataset.jobs > 0) && (!ind || d.dataset.ind === ind);
+      && (!hiring || +d.dataset.jobs > 0) && (!ind || d.dataset.ind === ind) && stageOk;
     d.style.display = ok ? "" : "none"; n += ok;
   });
-  $("shown").textContent = DATA.length ? `${n} of ${DATA.length} shown · ${sent.size} sent` : "";
+  const contactedCount = DATA.filter(c => stageOf(c.slug) !== "not_sent").length;
+  const dueCount = DATA.filter(c => isDue(c.slug)).length;
+  $("shown").textContent = DATA.length ? `${n} of ${DATA.length} shown · ${contactedCount} contacted${dueCount ? ` · ${dueCount} follow-up due` : ""}` : "";
 }
 
 // Populate the industry dropdown from the companies actually in this batch, so the
@@ -234,7 +407,7 @@ function populateIndustries() {
   if (industries.includes(prev)) $("ind").value = prev;
 }
 
-// ALL = every company in the batch; DATA = the ones whose founders are loaded (what the list shows)
+// ALL = every company in the selected batch(es); DATA = the ones whose founders are loaded (what the list shows)
 const PAGE = 20;
 const save = () => store.set(`${KEY}-batch-${batch}`, ALL);
 const busy = on => { $("load").disabled = $("more").disabled = on; $("enrich").disabled = on || !DATA.length };
@@ -249,19 +422,20 @@ function progress() {
 }
 
 async function loadBatch() {
-  batch = $("batch").value;
-  if (!batch) return;
+  const selected = [...$("batch").selectedOptions].map(o => o.value).filter(Boolean);
+  if (!selected.length) return;
+  batch = selected.slice().sort().join(",");
   busy(true);
   ALL = store.get(`${KEY}-batch-${batch}`, null) || [];
   try {
     if (!ALL.length) {
-      say("loadStatus", "Loading companies…");
+      say("loadStatus", selected.length > 1 ? `Loading ${selected.length} batches…` : "Loading companies…");
       ALL = (await api({ action: "companies", batch })).sort((a, b) => b.launched_at - a.launched_at);
       save();
     }
   } catch (e) {
     busy(false);
-    return say("loadStatus", `Couldn't load this batch: ${e.message}`, true);
+    return say("loadStatus", `Couldn't load ${selected.length > 1 ? "these batches" : "this batch"}: ${e.message}`, true);
   }
   DATA = ALL.filter(c => c.founders || c.error);
   populateIndustries();
@@ -284,6 +458,14 @@ function mergeCompany(target, fresh) {
   }
 }
 
+// New-batch/new-role watcher's baseline: a company freshly loaded already has its true job_count, so
+// record it immediately instead of letting the periodic digest treat it as a "new" role later.
+function noteJobBaseline(companies) {
+  const base = store.get(KEY + "-lastjobs", {});
+  companies.forEach(c => { if (c.job_count != null) base[c.slug] = c.job_count; });
+  store.set(KEY + "-lastjobs", base);
+}
+
 async function loadMore() {
   const next = ALL.filter(needsFetch).slice(0, PAGE);
   if (!next.length) return progress();
@@ -295,6 +477,7 @@ async function loadMore() {
     try {
       const res = await api({ action: "founders", slugs: chunk.map(c => c.slug).join(",") });
       res.forEach((r, j) => mergeCompany(chunk[j], r));
+      noteJobBaseline(chunk);
     } catch (e) { chunk.forEach(c => c.error = `Couldn't load founders: ${e.message}`) }
     DATA = ALL.filter(c => c.founders || c.error);
     render();
@@ -348,36 +531,239 @@ async function enrich() {
   }
 }
 
+// ---- Gmail direct-send (OAuth2 via Google Identity Services, gmail.send scope only) ----
+// The token never touches this site's server: it lives only in this tab's memory + sessionStorage,
+// and every API call below goes straight from the browser to googleapis.com.
+let gmailToken = sessionStorage.getItem(KEY + "-gmailtoken") || "";
+let gmailTokenExpiry = +sessionStorage.getItem(KEY + "-gmailexpiry") || 0;
+let tokenClient = null;
+function gmailConnected() { return !!gmailToken && Date.now() < gmailTokenExpiry; }
+
+function initGis() {
+  if (GOOGLE_CLIENT_ID.startsWith("REPLACE_WITH")) return false;
+  if (typeof google === "undefined" || !google.accounts?.oauth2) return false;
+  if (!tokenClient) {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GMAIL_SCOPE,
+      callback: (resp) => {
+        if (resp.error) return say("gmailStatus", `Connect failed: ${resp.error}`, true);
+        gmailToken = resp.access_token;
+        gmailTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000) - 30000;
+        sessionStorage.setItem(KEY + "-gmailtoken", gmailToken);
+        sessionStorage.setItem(KEY + "-gmailexpiry", String(gmailTokenExpiry));
+        setGmailUi(true);
+        say("gmailStatus", "Connected. Drafts now show a Send button instead of Copy.");
+        update(); render(); startQueueWorker();
+      }
+    });
+  }
+  return true;
+}
+function setGmailUi(on) {
+  $("gmailDot").classList.toggle("on", on);
+  $("gmailState").textContent = on ? "Connected" : "Not connected";
+  $("gmailConnect").hidden = on; $("gmailDisconnect").hidden = !on; $("queuePanel").hidden = !on;
+  $("gmailPanel").classList.toggle("connected", on);
+}
+$("gmailConnect").onclick = () => {
+  if (!initGis()) return say("gmailStatus", GOOGLE_CLIENT_ID.startsWith("REPLACE_WITH")
+    ? "This deployment hasn't configured a Google OAuth client ID yet (owner/operator step in Google Cloud Console — zero cost). Copy and mailto below still work."
+    : "Google's sign-in script hasn't finished loading — try again in a second.", true);
+  tokenClient.requestAccessToken();
+};
+$("gmailDisconnect").onclick = () => {
+  if (gmailToken && google?.accounts?.oauth2?.revoke) { try { google.accounts.oauth2.revoke(gmailToken, () => {}) } catch {} }
+  gmailToken = ""; gmailTokenExpiry = 0;
+  sessionStorage.removeItem(KEY + "-gmailtoken"); sessionStorage.removeItem(KEY + "-gmailexpiry");
+  setGmailUi(false); stopQueueWorker(); say("gmailStatus", "Disconnected."); update(); render();
+};
+
+function b64urlFromString(str) { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function mimeEncodeHeader(s) { return /[^\x00-\x7F]/.test(s) ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(s)))}?=` : s; }
+async function gmailSendMessage(to, subject, body) {
+  if (!gmailConnected()) throw new Error("Gmail isn't connected");
+  const raw = b64urlFromString([
+    `To: ${to}`, `Subject: ${mimeEncodeHeader(subject)}`, "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"', "Content-Transfer-Encoding: base64", "",
+    btoa(unescape(encodeURIComponent(body))).replace(/(.{76})/g, "$1\n"),
+  ].join("\r\n"));
+  const r = await fetch(`${GMAIL}/users/me/messages/send`, {
+    method: "POST", headers: { Authorization: `Bearer ${gmailToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || `Gmail HTTP ${r.status}`);
+  return j;
+}
+
+// ---- Send queue: persisted, rate-limited (20-60s random delay) and capped per day ----
+let queue = store.get(KEY + "-queue", []); // [{slug, kind: "main"|"followup", to, subject, body, queuedAt}]
+let queuePaused = store.get(KEY + "-queue-paused", false);
+let queueTimer = null, nextSendAt = 0;
+function sendLog() { return store.get(KEY + "-sendlog", []); }
+function sentInLast24h() { const cutoff = Date.now() - 86400000; return sendLog().filter(t => t > cutoff).length; }
+function logSend() { store.set(KEY + "-sendlog", [...sendLog(), Date.now()].filter(t => t > Date.now() - 86400000)); }
+function stopQueueWorker() { if (queueTimer) { clearTimeout(queueTimer); queueTimer = null } }
+
+function enqueueSend(c, kind) {
+  const to = contacts(c)[0];
+  const email = to ? best(to).email : "";
+  if (!email) return say("gmailStatus", `No email on file for ${c.name} yet.`, true);
+  if (queue.some(q => q.slug === c.slug && q.kind === kind)) return say("gmailStatus", `${c.name} is already queued.`);
+  const subject = kind === "followup" ? fill(tpl.followup_subject, c) : fill(tpl.subject, c);
+  const body = kind === "followup" ? fill(tpl.followup_body, c) : fill(tpl.body, c);
+  queue.push({ slug: c.slug, kind, to: email, subject, body, queuedAt: Date.now() });
+  store.set(KEY + "-queue", queue);
+  say("gmailStatus", `Queued ${c.name} (${kind === "followup" ? "follow-up" : "first email"}). ${queue.length} pending.`);
+  renderQueue(); startQueueWorker();
+}
+
+function renderQueue() {
+  if ($("qPending")) $("qPending").textContent = queue.length;
+  if ($("qSentToday")) $("qSentToday").textContent = sentInLast24h();
+  if ($("qCapLabel")) $("qCapLabel").textContent = $("dailyCap").value || 30;
+  if ($("qNext")) $("qNext").textContent = queuePaused ? "Paused"
+    : nextSendAt > Date.now() ? `Next send in ${Math.ceil((nextSendAt - Date.now()) / 1000)}s`
+    : queue.length ? "Sending…" : "";
+}
+setInterval(renderQueue, 1000);
+
+function startQueueWorker() {
+  if (queueTimer || queuePaused || !gmailConnected() || !queue.length) return;
+  const cap = +$("dailyCap").value || 30;
+  if (sentInLast24h() >= cap) {
+    say("gmailStatus", `Daily cap of ${cap} reached — the queue resumes automatically as the 24h window rolls forward.`);
+    queueTimer = setTimeout(() => { queueTimer = null; startQueueWorker(); }, 5 * 60000);
+    return;
+  }
+  const delay = 20000 + Math.random() * 40000; // randomized 20-60s between sends, "be decent"
+  nextSendAt = Date.now() + delay;
+  queueTimer = setTimeout(async () => {
+    queueTimer = null;
+    const item = queue[0];
+    if (!item) return;
+    try {
+      await gmailSendMessage(item.to, item.subject, item.body);
+      logSend();
+      queue.shift(); store.set(KEY + "-queue", queue);
+      setStage(item.slug, item.kind === "followup" ? "followed_up" : "sent");
+      say("gmailStatus", `Sent to ${item.to}. ${queue.length} left in queue.`);
+      render();
+    } catch (e) {
+      say("gmailStatus", `Send failed for ${item.to}: ${e.message}. Left in queue — will retry.`, true);
+    }
+    startQueueWorker();
+  }, delay);
+}
+$("qToggle").onclick = () => {
+  queuePaused = !queuePaused; store.set(KEY + "-queue-paused", queuePaused);
+  $("qToggle").textContent = queuePaused ? "Resume" : "Pause";
+  if (queuePaused) stopQueueWorker(); else startQueueWorker();
+  renderQueue();
+};
+$("qClear").onclick = () => {
+  if (!queue.length || !confirm(`Clear ${queue.length} queued send(s)?`)) return;
+  queue = []; store.set(KEY + "-queue", queue); stopQueueWorker(); renderQueue();
+};
+
+// ---- New-batch / new-role watcher: cheap periodic /api/yc?action=digest round-trip, client-side only ----
+function notify(title, body) {
+  say("watchStatus", `${title}: ${body}`);
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try { new Notification(title, { body }) } catch {}
+  }
+}
+function noteBaselineBatches(bs) {
+  const primed = store.get(KEY + "-watch-primed", false);
+  const prior = store.get(KEY + "-lastbatches", {});
+  if (primed) {
+    const changed = bs.filter(b => b.batch !== "Unspecified" && prior[b.batch] !== b.count);
+    if (changed.length) notify(`New YC batch${changed.length > 1 ? "es" : ""}`, changed.map(b => `${b.batch} (${b.count} companies)`).join(", "));
+  }
+  store.set(KEY + "-lastbatches", Object.fromEntries(bs.map(b => [b.batch, b.count])));
+  store.set(KEY + "-watch-primed", true);
+}
+const WATCH_INTERVAL = 5 * 60000;
+let watchTimer = null;
+function startWatch() {
+  if (watchTimer) return;
+  watchTimer = setInterval(() => { if (document.visibilityState === "visible") checkDigest() }, WATCH_INTERVAL);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkDigest() });
+}
+async function checkDigest() {
+  const slugs = DATA.filter(c => !c.error && c.slug).map(c => c.slug).slice(0, 40);
+  const knownJobs = store.get(KEY + "-lastjobs", {});
+  const knownBatches = store.get(KEY + "-lastbatches", {});
+  try {
+    const d = await api({ action: "digest", known_batches: JSON.stringify(knownBatches), slugs: slugs.join(","), known_jobs: JSON.stringify(knownJobs) });
+    noteBaselineBatches(d.batches);
+    if (d.changed_jobs?.length) {
+      const msgs = d.changed_jobs.map(j => { const c = DATA.find(x => x.slug === j.slug); return `${c ? c.name : j.slug}: ${j.job_count} open role${j.job_count === 1 ? "" : "s"}` });
+      notify(`New YC role${msgs.length > 1 ? "s" : ""}`, msgs.join(" · "));
+    }
+    store.set(KEY + "-lastjobs", { ...knownJobs, ...d.job_counts });
+  } catch { /* background watcher: fail quietly, next tick retries */ }
+}
+$("notifyBtn").onclick = async () => {
+  if (typeof Notification === "undefined") return say("watchStatus", "Notifications aren't supported in this browser.", true);
+  const perm = await Notification.requestPermission();
+  say("watchStatus", perm === "granted" ? "Alerts on: new batches and new roles will notify you while this tab is open." : "Notifications blocked by the browser — alerts still show in this status line.");
+};
+
 $("list").addEventListener("toggle", e => { if (e.target.open) draft(e.target) }, true);
+$("list").addEventListener("change", e => {
+  const stageSel = e.target.closest('[data-a="stage"]');
+  if (stageSel) { const d = stageSel.closest("details"), c = DATA[d.dataset.i]; setStage(c.slug, stageSel.value); render(); return; }
+  const jobSelEl = e.target.closest('[data-a="jobpick"]');
+  if (jobSelEl) { const d = jobSelEl.closest("details"), c = DATA[d.dataset.i]; jobSel[c.slug] = +jobSelEl.value; store.set(KEY + "-jobsel", jobSel); update(); }
+});
 $("list").addEventListener("click", e => {
   const b = e.target.closest("[data-a]"); if (!b) return;
+  const action = b.dataset.a;
+  if (action === "stage" || action === "jobpick") return; // selects: handled by the change listener above
   const d = b.closest("details"), c = DATA[d.dataset.i];
-  if (b.dataset.a === "sent") {
-    b.checked ? sent.add(c.slug) : sent.delete(c.slug);
-    d.classList.toggle("sent", b.checked); store.set(KEY + "-sent", [...sent]); filter(); return;
+  if (action === "send") return enqueueSend(c, "main");
+  if (action === "fsend") return enqueueSend(c, "followup");
+  if (action === "togglealt") return b.nextElementSibling?.classList.toggle("show");
+  if (action === "viewjob") {
+    const u = b.dataset.u, old = b.textContent;
+    b.textContent = "Loading\u2026";
+    return api({ action: "job", url: u }).then(detail => { jobCache[u] = detail; store.set(KEY + "-jobcache", jobCache); render() })
+      .catch(err => { b.textContent = old; say("gmailStatus", `Couldn't load that job posting: ${err.message}`, true) });
   }
   const to = contacts(c)[0];
-  const txt = b.dataset.a === "body" ? d.querySelector("pre").textContent : b.dataset.a === "subject" ? d.querySelector(".subj").textContent : to ? best(to).email : "";
-  navigator.clipboard.writeText(txt).then(() => { const o = b.textContent; b.textContent = "Copied"; setTimeout(() => b.textContent = o, 1200) });
+  const txt = action === "body" ? d.querySelector("pre").textContent
+    : action === "fbody" ? d.querySelector(".fpre")?.textContent
+    : action === "subject" ? d.querySelector(".subj").textContent
+    : action === "to" && to ? best(to).email : "";
+  navigator.clipboard.writeText(txt || "").then(() => { const o = b.textContent; b.textContent = "Copied"; setTimeout(() => b.textContent = o, 1200) });
 });
-["q", "st", "ind", "hideSent", "hiring"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
+["q", "st", "ind", "hideSent", "hiring", "stageFilter"].forEach(id => $(id).addEventListener(id === "q" ? "input" : "change", filter));
 $("all").onclick = e => {
   const open = e.target.textContent === "Expand all";
-  document.querySelectorAll("details").forEach(d => { if (d.style.display !== "none") d.open = open });
+  document.querySelectorAll("#list details").forEach(d => { if (d.style.display !== "none") d.open = open });
   e.target.textContent = open ? "Collapse all" : "Expand all";
 };
+$("fitSort").onclick = () => {
+  sortMode = sortMode === "fit" ? "default" : "fit";
+  DATA.sort(sortMode === "fit" ? (a, b) => (fitScore(b) ?? -1) - (fitScore(a) ?? -1) : (a, b) => (b.launched_at || 0) - (a.launched_at || 0));
+  $("fitSort").textContent = sortMode === "fit" ? "Default order" : "Best fit first";
+  render();
+};
 $("exportCsv").onclick = () => {
-  const visibleIndices = Array.from(document.querySelectorAll("details"))
+  const visibleIndices = Array.from(document.querySelectorAll("#list details"))
     .filter(d => d.style.display !== "none")
     .map(d => parseInt(d.dataset.i, 10));
   if (!visibleIndices.length) return alert("No data to export.");
-  const headers = ["Company", "Batch", "Industry", "Founder Name", "Title", "Email", "Email Status", "LinkedIn", "Twitter", "Jobs on YC", "Website"];
+  const headers = ["Company", "Batch", "Industry", "Founder Name", "Title", "Email", "Email Status", "Confidence %", "LinkedIn", "Twitter", "Jobs on YC", "Website", "Stage", "Sent At", "Follow-up Due", "Followed Up At", "Replied At"];
+  const iso = t => t ? new Date(t).toISOString() : "";
   const rows = visibleIndices.flatMap(i => {
-    const c = DATA[i], fs = contacts(c);
-    if (!fs.length) return [[c.name, c.batch, c.industry || "", "", "", "", "", "", "", c.job_count || 0, c.website || ""]];
+    const c = DATA[i], fs = contacts(c), s = stages[c.slug] || {};
+    const stageCols = [STAGE_LABEL[stageOf(c.slug)], iso(s.sentAt), iso(s.followupDueAt), iso(s.followedUpAt), iso(s.repliedAt)];
+    if (!fs.length) return [[c.name, c.batch, c.industry || "", "", "", "", "", "", "", "", c.job_count || 0, c.website || "", ...stageCols]];
     return fs.map(f => {
-       const e = best(f);
-       return [c.name, c.batch, c.industry || "", f.name, f.title || "", e.email || "", e.label || "", f.linkedin || "", f.twitter || "", c.job_count || 0, c.website || ""];
+      const e = best(f);
+      return [c.name, c.batch, c.industry || "", f.name, f.title || "", e.email || "", e.label || "", e.confidence || "", f.linkedin || "", f.twitter || "", c.job_count || 0, c.website || "", ...stageCols];
     });
   });
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
@@ -386,13 +772,37 @@ $("exportCsv").onclick = () => {
   link.download = `yc_outreach_${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
+// Full session backup/restore: every localStorage key this app writes, prefixed with KEY, as one JSON
+// file \u2014 so clearing localStorage or moving to a new browser doesn't lose a user's whole pipeline.
+$("exportJson").onclick = () => {
+  const dump = {};
+  for (const k of Object.keys(localStorage)) if (k.startsWith(KEY)) dump[k] = localStorage.getItem(k);
+  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), data: dump }, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `yc_outreach_session_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+};
+$("importJson").addEventListener("change", async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const data = parsed && typeof parsed === "object" ? (parsed.data || parsed) : null;
+    const keys = data ? Object.keys(data).filter(k => k.startsWith(KEY)) : [];
+    if (!keys.length) throw new Error("No recognisable yc-outreach data in that file");
+    if (!confirm(`Import ${keys.length} saved item(s)? This replaces matching data in your current session \u2014 export first if unsure.`)) return;
+    for (const k of keys) localStorage.setItem(k, data[k]);
+    location.reload();
+  } catch (err) { alert(`Couldn't import session: ${err.message}`); }
+  finally { e.target.value = "" }
+});
 document.querySelectorAll("[data-k]").forEach(el => {
   if (!(el.dataset.k in tpl)) return;
   el.value = tpl[el.dataset.k];
   el.addEventListener("input", () => { tpl[el.dataset.k] = el.value; store.set(KEY, tpl); update(); });
 });
 let lastField = document.querySelector('textarea[data-k="body"]');
-document.querySelectorAll('input[data-k="subject"], textarea[data-k="body"]').forEach(el => el.addEventListener("focus", () => lastField = el));
+document.querySelectorAll('input[data-k="subject"], textarea[data-k="body"], input[data-k="followup_subject"], textarea[data-k="followup_body"]').forEach(el => el.addEventListener("focus", () => lastField = el));
 $("vars").addEventListener("click", e => {
   if (e.target.tagName !== "CODE") return;
   const el = lastField, s = el.selectionStart ?? el.value.length;
@@ -407,12 +817,22 @@ $("reset").onclick = () => {
 $("load").onclick = loadBatch;
 $("more").onclick = loadMore;
 $("enrich").onclick = enrich;
-$("batch").onchange = () => store.set(KEY + "-last", $("batch").value);
+$("batch").onchange = () => store.set(KEY + "-last", [...$("batch").selectedOptions].map(o => o.value));
+$("followupDays").value = store.get(KEY + "-followupdays", 5);
+$("followupDays").addEventListener("change", () => store.set(KEY + "-followupdays", +$("followupDays").value || 5));
+$("dailyCap").value = store.get(KEY + "-dailycap", 30);
+$("dailyCap").addEventListener("change", () => store.set(KEY + "-dailycap", +$("dailyCap").value || 30));
+$("qToggle").textContent = queuePaused ? "Resume" : "Pause";
+if (gmailConnected()) { setGmailUi(true); startQueueWorker() }
+renderQueue();
 
 api({ action: "batches" }).then(bs => {
-  const last = store.get(KEY + "-last", "");
+  const last = store.get(KEY + "-last", []);
+  const lastArr = Array.isArray(last) ? last : (last ? [last] : []); // migrate the old single-select format
   $("batch").innerHTML = bs.filter(b => b.batch !== "Unspecified")
-    .map(b => `<option value="${esc(b.batch)}" ${b.batch === last ? "selected" : ""}>${esc(b.batch)} (${b.count} companies)</option>`).join("");
+    .map(b => `<option value="${esc(b.batch)}" ${lastArr.includes(b.batch) ? "selected" : ""}>${esc(b.batch)} (${b.count} companies)</option>`).join("");
   $("load").disabled = false;
+  noteBaselineBatches(bs);
+  startWatch();
 }).catch(e => { $("batch").innerHTML = "<option value=''>Couldn't load batches</option>"; say("loadStatus", e.message, true) });
 </script></body></html>
