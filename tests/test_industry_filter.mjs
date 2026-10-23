@@ -68,7 +68,7 @@ function buildSandbox() {
       return elements.get(id);
     },
     querySelectorAll(sel) {
-      if (sel === "details") return detailsRegistry;
+      if (sel === "details" || sel === "#list details") return detailsRegistry;
       if (sel === "[data-k]") return dataKFields;
       return [];
     },
@@ -78,12 +78,26 @@ function buildSandbox() {
   const localStorage = {
     getItem(k) { return storageMap.has(k) ? storageMap.get(k) : null; },
     setItem(k, v) { storageMap.set(k, String(v)); },
+    removeItem(k) { storageMap.delete(k); },
+  };
+  // The real script also reads/writes sessionStorage (Gmail OAuth token) and uses
+  // setInterval (queue countdown refresh) at the top level -- stub both so the whole
+  // inline script can run unmodified inside this sandbox.
+  const sessionMap = new Map();
+  const sessionStorage = {
+    getItem(k) { return sessionMap.has(k) ? sessionMap.get(k) : null; },
+    setItem(k, v) { sessionMap.set(k, String(v)); },
+    removeItem(k) { sessionMap.delete(k); },
   };
 
   const sandbox = {
-    document, localStorage,
+    document, localStorage, sessionStorage,
     fetch: async () => { throw new Error("network disabled in test"); },
-    setTimeout, clearTimeout, URLSearchParams, console,
+    setTimeout, clearTimeout,
+    // unref so the one real interval the script starts (the queue countdown ticker)
+    // can't keep this short-lived test process alive after the assertions run.
+    setInterval: (fn, ms) => { const t = setInterval(fn, ms); t.unref?.(); return t; },
+    clearInterval, URLSearchParams, console,
     __detailsRegistry: detailsRegistry,
   };
   return vm.createContext(sandbox);
