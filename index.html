@@ -1,6 +1,17 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>YC Founder Outreach</title>
 <meta name="description" content="Pick a YC batch, find founder emails, and write personalised cold emails from one template.">
+<link rel="canonical" href="https://yc-outreach-two.vercel.app/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23e2561b'/%3E%3Cpath d='M18 30h64v40H18z' fill='none' stroke='%23fff' stroke-width='6'/%3E%3Cpath d='M20 32l30 24 30-24' fill='none' stroke='%23fff' stroke-width='6'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#e2561b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="YC Founder Outreach">
+<meta property="og:title" content="YC Founder Outreach">
+<meta property="og:description" content="Pick any YC batch, get every company's founders and likely email addresses, and draft a personalised cold email to each one from a single template. Free, no sign-up, no API key.">
+<meta property="og:url" content="https://yc-outreach-two.vercel.app/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="YC Founder Outreach">
+<meta name="twitter:description" content="Pick any YC batch, get every company's founders and likely email addresses, and draft a personalised cold email to each one from a single template. Free, no sign-up, no API key.">
 <style>
 :root{--bg:#f7f7f5;--card:#fff;--fg:#1c1c1a;--muted:#6b6b66;--line:#e4e3de;--accent:#e2561b;--ok:#1f8a4c;--warn:#a86b00;--err:#c0392b}
 @media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--fg:#ecebe6;--muted:#9a998f;--line:#302f2b;--accent:#f07a45;--ok:#4cc27d;--warn:#e0a53a;--err:#e8705f}}
@@ -86,7 +97,7 @@ footer{color:var(--muted);font-size:13px;margin-top:32px}
 <p class="sub" id="shown" style="margin:0 0 10px"></p>
 <div id="list"></div>
 <p style="text-align:center"><button id="more" class="primary" type="button" hidden>Load more</button></p>
-<footer>Open source. Company and founder data comes from YC's public directory. Please write to people one at a time and respect "no".</footer>
+<footer><a class="lnk" href="https://github.com/adityajha2005/yc-outreach" target="_blank" rel="noopener">Open source</a> — star it on GitHub. Company and founder data comes from YC's public directory. Please write to people one at a time and respect "no".</footer>
 </main>
 <script>
 const DEFAULTS = {
