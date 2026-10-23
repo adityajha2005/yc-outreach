@@ -1,5 +1,7 @@
 # YC Outreach
 
+**Live:** [yc-outreach-two.vercel.app](https://yc-outreach-two.vercel.app/) — no install, nothing to sign up for.
+
 Pick any Y Combinator batch, get every company's founders and their likely email addresses, and write a personalised
 cold email to each one from a single template. Free by default (no API keys, no sign-up); optional verified emails
 with your own Apify token.
@@ -16,7 +18,8 @@ Python 3.9+, standard library only. Nothing to install.
 2. **Founders load 20 companies at a time** (about 5–10 s per 20); click **Load more** for the next 20. For each
    company the server reads its ycombinator.com page for the founders' names, titles, LinkedIn and X, and for how
    many roles that company has open on YC (title and link for each). Loaded companies are kept in your browser, so
-   reopening a batch is instant. Check **hiring** to hide companies with no open roles.
+   reopening a batch is instant. Check **hiring** to hide companies with no open roles, or pick an **industry**
+   (B2B, Fintech, Healthcare, ...) from the dropdown to narrow the batch to the sector you actually want to reach.
 3. **Emails are filled in** for each founder, best source first:
 
    | Label | Source | Reliability |
@@ -98,6 +101,10 @@ domain doesn't resolve.
 - **Founders and open roles:** the `data-page` JSON embedded in each `ycombinator.com/companies/<slug>` page
   (`props.company` and `props.jobPostings`). Incomplete postings are skipped. Browsers can't fetch these
   cross-origin, which is why this part runs on a server.
+- **On-site emails:** the homepage and `/contact` page, plain text and Cloudflare's "email protection"
+  obfuscation (`data-cfemail="<hex>"`, shown on the page as `[email protected]`) decoded the same way browsers
+  render it. About 1 in 16 company sites use this, so without decoding it those real, published addresses would
+  silently fall back to a lower-reliability guess.
 - **Verified emails (optional):** the Apify actor
   [`snipercoder/email-finder-by-name-and-domain`](https://apify.com/snipercoder/email-finder-by-name-and-domain),
   called **from the browser** with the visitor's own token, so the token never reaches the server. Results are

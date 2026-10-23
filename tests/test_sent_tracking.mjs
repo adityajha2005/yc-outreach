@@ -1,7 +1,11 @@
 // Exercises the real index.html <script> inside a sandboxed VM context to prove that
-// marking one company "sent" does not affect a different company that happens to share
-// the same display name (YC has many name collisions across/within batches, e.g. two
-// distinct "Palisade" companies both appear in Summer 2026 with slugs palisade/palisade-2).
+// marking one company's pipeline stage does not affect a different company that happens
+// to share the same display name (YC has many name collisions across/within batches, e.g.
+// two distinct "Palisade" companies both appear in Summer 2026 with slugs palisade/palisade-2).
+//
+// Pipeline state moved from a boolean "sent" Set (commit bfca064) to a per-slug stage enum
+// (not_sent/sent/followed_up/replied/interview/rejected/closed, each with a timestamp) --
+// this test now drives that stage select instead of the old checkbox, same slug-isolation intent.
 //
 // No npm dependencies: node:vm + node:assert only, matching this repo's stdlib-only policy.
 // Run: node tests/test_sent_tracking.mjs
@@ -23,7 +27,7 @@ assert.ok(scriptMatch, "index.html must contain a single inline <script> block")
 const glue = `
 ;globalThis.__test = {
   setData: (v) => { DATA = v; },
-  getSent: () => sent,
+  getStages: () => stages,
 };
 `;
 const source = scriptMatch[1] + glue;
@@ -65,7 +69,7 @@ function buildSandbox() {
       return elements.get(id);
     },
     querySelectorAll(sel) {
-      if (sel === "details") return detailsRegistry;
+      if (sel === "details" || sel === "#list details") return detailsRegistry;
       if (sel === "[data-k]") return dataKFields;
       return [];
     },
@@ -79,12 +83,26 @@ function buildSandbox() {
   const localStorage = {
     getItem(k) { return storageMap.has(k) ? storageMap.get(k) : null; },
     setItem(k, v) { storageMap.set(k, String(v)); },
+    removeItem(k) { storageMap.delete(k); },
+  };
+  // The real script also reads/writes sessionStorage (Gmail OAuth token) and uses
+  // setInterval (queue countdown refresh) at the top level -- stub both so the whole
+  // inline script can run unmodified inside this sandbox.
+  const sessionMap = new Map();
+  const sessionStorage = {
+    getItem(k) { return sessionMap.has(k) ? sessionMap.get(k) : null; },
+    setItem(k, v) { sessionMap.set(k, String(v)); },
+    removeItem(k) { sessionMap.delete(k); },
   };
 
   const sandbox = {
-    document, localStorage,
+    document, localStorage, sessionStorage,
     fetch: async () => { throw new Error("network disabled in test"); },
-    setTimeout, clearTimeout, URLSearchParams, console,
+    setTimeout, clearTimeout,
+    // unref so the one real interval the script starts (the queue countdown ticker)
+    // can't keep this short-lived test process alive after the assertions run.
+    setInterval: (fn, ms) => { const t = setInterval(fn, ms); t.unref?.(); return t; },
+    clearInterval, URLSearchParams, console,
     __detailsRegistry: detailsRegistry,
   };
   return vm.createContext(sandbox);
@@ -109,17 +127,17 @@ function run(companyA, companyB) {
   ctx.__test.setData([companyA, companyB]);
 
   const listEl = ctx.document.getElementById("list");
-  const clickHandler = listEl._listeners.click[0];
+  const changeHandler = listEl._listeners.change[0];
 
-  // Simulate checking the "sent" checkbox on company A (index 0).
-  const checkbox = makeEl();
-  checkbox.dataset.a = "sent";
-  checkbox.checked = true;
-  checkbox.closest = (sel) => (sel === "[data-a]" ? checkbox : sel === "details" ? detailsA : null);
+  // Simulate picking "Sent" in company A's (index 0) pipeline-stage <select>.
+  const stageSelect = makeEl();
+  stageSelect.dataset.a = "stage";
+  stageSelect.value = "sent";
+  stageSelect.closest = (sel) => (sel === '[data-a="stage"]' ? stageSelect : sel === "details" ? detailsA : null);
 
-  clickHandler({ target: checkbox });
+  changeHandler({ target: stageSelect });
 
-  return { sent: ctx.__test.getSent(), detailsA, detailsB };
+  return { stages: ctx.__test.getStages(), detailsA, detailsB };
 }
 
 // Two distinct real YC companies that share a display name but have different slugs
@@ -127,28 +145,26 @@ function run(companyA, companyB) {
 const companyA = { name: "Palisade", slug: "palisade" };
 const companyB = { name: "Palisade", slug: "palisade-2" };
 
-const { sent, detailsA, detailsB } = run(companyA, companyB);
+const { stages } = run(companyA, companyB);
 
-// The bug: "sent" tracking keyed by company *name* marks both same-named companies as
-// sent, even though only the first one was ever actually marked.
-const keyedByName = sent.has(companyA.name) && sent.has(companyB.name);
+// The bug this guards against: stage tracking keyed by company *name* would mark both
+// same-named companies as sent, even though only the first one was ever actually marked.
+const keyedByNameWouldCollide = stages[companyA.name] !== undefined || stages[companyB.name] !== undefined;
 // The fix: keyed by slug, marking A must not affect B.
-const keyedBySlugCorrectly = sent.has(companyA.slug) && !sent.has(companyB.slug);
-
-assert.equal(detailsA.classList.contains("sent"), true, "company A's own row should be marked sent");
+const keyedBySlugCorrectly = stages[companyA.slug]?.stage === "sent" && stages[companyB.slug] === undefined;
 
 assert.equal(
   keyedBySlugCorrectly,
   true,
-  `Expected "sent" to be tracked by the unique company slug, not the (possibly duplicate) name. ` +
-  `sent=${JSON.stringify([...sent])} -- marking "${companyA.name}" (slug ${companyA.slug}) as sent must not ` +
+  `Expected pipeline stage to be tracked by the unique company slug, not the (possibly duplicate) name. ` +
+  `stages=${JSON.stringify(stages)} -- marking "${companyA.name}" (slug ${companyA.slug}) as sent must not ` +
   `also mark the unrelated company "${companyB.name}" (slug ${companyB.slug}) as sent.`
 );
 assert.equal(
-  keyedByName,
+  keyedByNameWouldCollide,
   false,
-  "sent-tracking must not use the non-unique company name as its key (YC has real name collisions, " +
+  "pipeline-stage tracking must not use the non-unique company name as its key (YC has real name collisions, " +
   'e.g. two distinct "Palisade" companies both in Summer 2026: slugs palisade / palisade-2)'
 );
 
-console.log("PASS: sent-tracking is keyed by unique company slug, not by the collidable display name.");
+console.log("PASS: pipeline-stage tracking is keyed by unique company slug, not by the collidable display name.");
